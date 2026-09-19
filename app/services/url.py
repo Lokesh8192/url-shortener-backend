@@ -1,0 +1,67 @@
+import secrets
+import string
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
+from app.models.url import URL
+
+SHORT_CODE_LENGTH = 7
+MAX_GENERATION_ATTEMPTS = 10
+
+BASE62_ALPHABET = (
+    string.ascii_letters+string.digits
+)
+
+
+def generate_short_code(length: int = SHORT_CODE_LENGTH) -> str:
+    """
+    Generate a random Base62 short code.
+    """
+    return "".join(
+        secrets.choice(BASE62_ALPHABET)
+        for _ in range(length)
+    )
+
+
+def create_short_url(
+    db: Session,
+    original_url: str,
+    expires_at=None,
+) -> URL:
+    """
+    Create and persist a shortened URL.
+    """
+
+    for _ in range(MAX_GENERATION_ATTEMPTS):
+        short_code = generate_short_code()
+
+        existing_url = (
+            db.query(URL)
+            .filter(URL.short_code == short_code)
+            .first()
+        )
+
+        if existing_url:
+            continue
+
+        url = URL(
+            original_url=original_url,
+            short_code=short_code,
+            expires_at=expires_at,
+            is_active=True,
+            click_count=0,
+        )
+
+        db.add(url)
+
+        try:
+            db.commit()
+            db.refresh(url)
+
+            return url
+
+        except IntegrityError:
+            db.rollback()
+
+    raise RuntimeError(
+        "Unable to generate a unique short code"
+    )
