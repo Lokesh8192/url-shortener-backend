@@ -3,6 +3,10 @@ import string
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from app.models.url import URL
+from datetime import datetime, timezone
+from sqlalchemy import update
+from fastapi import HTTPException, status
+
 
 SHORT_CODE_LENGTH = 7
 MAX_GENERATION_ATTEMPTS = 10
@@ -65,3 +69,35 @@ def create_short_url(
     raise RuntimeError(
         "Unable to generate a unique short code"
     )
+
+
+def get_url_by_short_code(db: Session, short_code: str) -> URL:
+    """
+    Retrieve an active, non-expired URL by short code
+    and increment its click count.
+    """
+    url = (
+        db.query(URL).filter(URL.short_code == short_code).first()
+    )
+    if not url:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Short URL isn't found!",
+        )
+    if not url.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_410_GONE,
+            detail="Short URL is inactive"
+        )
+    if (
+        url.expires_at is not None and url.expires_at <= datetime.now(
+            timezone.utc)
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_410_GONE,
+            detail="Short URL has expired",
+        )
+    url.click_count += 1
+    db.commit()
+    db.refresh(url)
+    return url
