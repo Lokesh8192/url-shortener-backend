@@ -71,6 +71,40 @@ def create_short_url(
     )
 
 
+def get_all_urls(db: Session) -> list[URL]:
+    """
+    Return all shortened URLs.
+    """
+    return (
+        db.query(URL)
+        .order_by(URL.id.desc()).all()
+    )
+
+
+def get_url_by_id(db: Session, url_id: int) -> URL:
+    """
+    Return a shortened URL by its database ID.
+    """
+    url = (
+        db.query(URL).filter(URL.id == url_id).first()
+    )
+    if not url:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="URL not found"
+        )
+    return url
+
+
+def delete_url(db: Session, url_id: int) -> None:
+    """
+    Delete a shortened URL by its database ID.
+    """
+    url = get_url_by_id(db=db, url_id=url_id)
+    db.delete(url)
+    db.commit()
+
+
 def get_url_by_short_code(db: Session, short_code: str) -> URL:
     """
     Retrieve an active, non-expired URL by short code

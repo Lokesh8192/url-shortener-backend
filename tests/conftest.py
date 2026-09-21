@@ -1,7 +1,7 @@
 import pytest
 
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 
 from app.core.config import settings
@@ -53,10 +53,20 @@ def clean_database():
     db = TestingSessionLocal()
 
     try:
-        for table in reversed(
-            Base.metadata.sorted_tables
-        ):
-            db.execute(table.delete())
+        if test_engine.dialect.name == "postgresql":
+            db.execute(
+                text("TRUNCATE TABLE urls RESTART IDENTITY CASCADE")
+            )
+        else:
+            for table in reversed(
+                Base.metadata.sorted_tables
+            ):
+                db.execute(table.delete())
+
+            if test_engine.dialect.name == "sqlite":
+                db.execute(
+                    text("DELETE FROM sqlite_sequence WHERE name = 'urls'")
+                )
 
         db.commit()
 
