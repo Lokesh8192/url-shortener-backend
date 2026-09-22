@@ -55,7 +55,10 @@ def clean_database():
     try:
         if test_engine.dialect.name == "postgresql":
             db.execute(
-                text("TRUNCATE TABLE urls RESTART IDENTITY CASCADE")
+                text(
+                    "TRUNCATE TABLE urls, users "
+                    "RESTART IDENTITY CASCADE"
+                )
             )
         else:
             for table in reversed(
@@ -92,3 +95,40 @@ def client():
         yield test_client
 
     app.dependency_overrides.clear()
+
+
+@pytest.fixture()
+def registered_user(client):
+    payload = {
+        "username": "testuser",
+        "email": "test@example.com",
+        "password": "Test@1234",
+    }
+
+    response = client.post(
+        "/auth/register",
+        json=payload,
+    )
+
+    assert response.status_code == 201
+
+    return payload
+
+
+@pytest.fixture()
+def auth_headers(client, registered_user):
+    response = client.post(
+        "/auth/login",
+        json={
+            "email": registered_user["email"],
+            "password": registered_user["password"],
+        },
+    )
+
+    assert response.status_code == 200
+
+    token = response.json()["access_token"]
+
+    return {
+        "Authorization": f"Bearer {token}"
+    }

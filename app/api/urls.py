@@ -1,6 +1,8 @@
 from fastapi import APIRouter, Depends, status, Request
 from sqlalchemy.orm import Session
 from app.db.dependencies import get_db
+from app.models.user import User
+from app.api.dependencies import get_current_user
 from app.schemas.url import URLCreate, URLResponse
 from app.services.url import create_short_url, get_all_urls, get_url_by_id, delete_url
 
@@ -26,29 +28,19 @@ def build_url_response(request: Request, url) -> URLResponse:
 
 
 @router.post("", response_model=URLResponse, status_code=status.HTTP_201_CREATED, summary="Create a shortend URL", description=("Creates a shortened URL with a generated short code."))
-def create_url(payload: URLCreate, request: Request, db: Session = Depends(get_db)):
+def create_url(payload: URLCreate, request: Request, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     url = create_short_url(db=db, original_url=str(
-        payload.original_url), expires_at=payload.expires_at)
-    short_url = (
-        f"{request.base_url}{url.short_code}"
-    )
-    return URLResponse(
-        id=url.id,
-        original_url=url.original_url,
-        short_code=url.short_code,
-        short_url=short_url,
-        expires_at=url.expires_at,
-        is_active=url.is_active,
-        click_count=url.click_count,
-        created_at=url.created_at,
-        updated_at=url.updated_at,
+        payload.original_url), expires_at=payload.expires_at, user_id=current_user.id)
+    return build_url_response(
+        request=request,
+        url=url
     )
 
 
 @router.get("", response_model=list[URLResponse], summary="List Shortend URLs", description=("Returns all shortened URLs ordered "
                                                                                              "from newest to oldest."))
-def list_urls(request: Request, db: Session = Depends(get_db)):
-    urls = get_all_urls(db)
+def list_urls(request: Request, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    urls = get_all_urls(db=db, user_id=current_user.id)
     return [
         build_url_response(request=request, url=url)
         for url in urls
@@ -56,14 +48,14 @@ def list_urls(request: Request, db: Session = Depends(get_db)):
 
 
 @router.get("/{url_id}", response_model=URLResponse, summary="Get shortend URL", description=("Returns a shortened URL by its database ID."))
-def get_url(url_id: int, request: Request, db: Session = Depends(get_db)):
-    url = get_url_by_id(db=db, url_id=url_id)
+def get_url(url_id: int, request: Request, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    url = get_url_by_id(db=db, url_id=url_id, user_id=current_user.id)
     return build_url_response(request=request, url=url)
 
 
 @router.delete("/{url_id}", status_code=status.HTTP_200_OK, summary="Delete shortend url", description="Deletes a shortened URL by its database ID.")
-def remove_url(url_id: int, db: Session = Depends(get_db)):
-    delete_url(db=db, url_id=url_id)
+def remove_url(url_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    delete_url(db=db, url_id=url_id, user_id=current_user.id)
     return {
         "status": "success",
         "message": "URL deleted successfully",

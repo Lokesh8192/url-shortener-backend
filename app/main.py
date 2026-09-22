@@ -7,6 +7,9 @@ from app.api.urls import router as urls_router
 from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from app.core.exception_handlers import generic_exception_handler,http_exception_handler,validation_exception_handler
+from app.api.auth import router as auth_router
+from app.api.users import router as user_router
+from app.api.dependencies import get_current_user
 
 app = FastAPI(
     title="URL Shortener API",
@@ -30,10 +33,12 @@ app.add_exception_handler(
     generic_exception_handler
 )
 
+app.include_router(auth_router)
+app.include_router(user_router)
 app.include_router(urls_router)
 
 
-@app.get("/", tags=["System"])
+@app.get("/", tags=["System"],summary=["API root"])
 def root():
     return {
         "status": "success",
@@ -42,7 +47,7 @@ def root():
     }
 
 
-@app.get("/health", tags=["System"])
+@app.get("/health", tags=["System"],summary=["health check"])
 def health_check():
     return {
         "status": "success",

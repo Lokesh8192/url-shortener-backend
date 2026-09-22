@@ -30,6 +30,7 @@ def create_short_url(
     db: Session,
     original_url: str,
     expires_at=None,
+    user_id: int | None = None
 ) -> URL:
     """
     Create and persist a shortened URL.
@@ -48,6 +49,7 @@ def create_short_url(
             continue
 
         url = URL(
+            user_id=user_id,
             original_url=original_url,
             short_code=short_code,
             expires_at=expires_at,
@@ -71,36 +73,54 @@ def create_short_url(
     )
 
 
-def get_all_urls(db: Session) -> list[URL]:
+def get_all_urls(
+    db: Session,
+    user_id: int,
+) -> list[URL]:
     """
-    Return all shortened URLs.
+    Return only URLs owned by the authenticated user.
     """
+
     return (
         db.query(URL)
-        .order_by(URL.id.desc()).all()
+        .filter(URL.user_id == user_id)
+        .order_by(URL.id.desc())
+        .all()
     )
 
 
-def get_url_by_id(db: Session, url_id: int) -> URL:
+def get_url_by_id(
+    db: Session,
+    url_id: int,
+    user_id: int,
+) -> URL:
     """
-    Return a shortened URL by its database ID.
+    Return a URL only when it belongs to the user.
     """
+
     url = (
-        db.query(URL).filter(URL.id == url_id).first()
+        db.query(URL)
+        .filter(
+            URL.id == url_id,
+            URL.user_id == user_id,
+        )
+        .first()
     )
+
     if not url:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="URL not found"
+            detail="URL not found",
         )
+
     return url
 
 
-def delete_url(db: Session, url_id: int) -> None:
+def delete_url(db: Session, url_id: int, user_id: int) -> None:
     """
     Delete a shortened URL by its database ID.
     """
-    url = get_url_by_id(db=db, url_id=url_id)
+    url = get_url_by_id(db=db, url_id=url_id, user_id=user_id)
     db.delete(url)
     db.commit()
 
