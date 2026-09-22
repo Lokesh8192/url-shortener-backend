@@ -4,7 +4,8 @@ from app.db.dependencies import get_db
 from app.models.user import User
 from app.api.dependencies import get_current_user
 from app.schemas.url import URLCreate, URLResponse
-from app.services.url import create_short_url, get_all_urls, get_url_by_id, delete_url
+from app.schemas.url_stats import URLStatsResponse
+from app.services.url import create_short_url, get_all_urls, get_url_by_id, delete_url, get_url_stats
 
 router = APIRouter(prefix="/urls", tags=["URLS"])
 
@@ -45,6 +46,16 @@ def list_urls(request: Request, current_user: User = Depends(get_current_user), 
         build_url_response(request=request, url=url)
         for url in urls
     ]
+
+
+@router.get("/{url_id}/stats", response_model=URLStatsResponse, summary="Get URL Statistics", description="Returns click statistics for a URL owned by "
+            "the authenticated user.")
+def get_stats(
+    url_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    return get_url_stats(db=db, url_id=url_id, user_id=current_user.id)
 
 
 @router.get("/{url_id}", response_model=URLResponse, summary="Get shortend URL", description=("Returns a shortened URL by its database ID."))

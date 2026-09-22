@@ -8,9 +8,8 @@ from app.core.config import settings
 from app.db.base import Base
 from app.db.dependencies import get_db
 from app.main import app
-
 from app.models.url import URL
-
+from app.models.url_click import URLClick
 
 if not settings.TEST_DATABASE_URL:
     raise RuntimeError(
@@ -95,6 +94,16 @@ def client():
         yield test_client
 
     app.dependency_overrides.clear()
+
+
+@pytest.fixture()
+def db_session():
+    db = TestingSessionLocal()
+
+    try:
+        yield db
+    finally:
+        db.close()
 
 
 @pytest.fixture()

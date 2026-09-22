@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, Request
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 from app.db.dependencies import get_db
@@ -6,7 +6,7 @@ from app.services.url import get_url_by_short_code
 from app.api.urls import router as urls_router
 from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
-from app.core.exception_handlers import generic_exception_handler,http_exception_handler,validation_exception_handler
+from app.core.exception_handlers import generic_exception_handler, http_exception_handler, validation_exception_handler
 from app.api.auth import router as auth_router
 from app.api.users import router as user_router
 from app.api.dependencies import get_current_user
@@ -38,7 +38,7 @@ app.include_router(user_router)
 app.include_router(urls_router)
 
 
-@app.get("/", tags=["System"],summary=["API root"])
+@app.get("/", tags=["System"], summary=["API root"])
 def root():
     return {
         "status": "success",
@@ -47,7 +47,7 @@ def root():
     }
 
 
-@app.get("/health", tags=["System"],summary=["health check"])
+@app.get("/health", tags=["System"], summary=["health check"])
 def health_check():
     return {
         "status": "success",
@@ -62,11 +62,13 @@ def health_check():
 )
 def redirect_short_url(
     short_code: str,
+    request: Request,
     db: Session = Depends(get_db),
 ):
     url = get_url_by_short_code(
         db=db,
         short_code=short_code,
+        request=request
     )
 
     return RedirectResponse(
