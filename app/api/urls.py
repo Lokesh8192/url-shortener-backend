@@ -3,9 +3,16 @@ from sqlalchemy.orm import Session
 from app.db.dependencies import get_db
 from app.models.user import User
 from app.api.dependencies import get_current_user
-from app.schemas.url import URLCreate, URLResponse
+from app.schemas.url import URLCreate, URLResponse, URLUpdate
 from app.schemas.url_stats import URLStatsResponse
-from app.services.url import create_short_url, get_all_urls, get_url_by_id, delete_url, get_url_stats
+from app.services.url import (
+    create_short_url,
+    delete_url,
+    get_all_urls,
+    get_url_by_id,
+    get_url_stats,
+    update_url,
+)
 
 router = APIRouter(prefix="/urls", tags=["URLS"])
 
@@ -61,6 +68,31 @@ def get_stats(
 @router.get("/{url_id}", response_model=URLResponse, summary="Get shortend URL", description=("Returns a shortened URL by its database ID."))
 def get_url(url_id: int, request: Request, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     url = get_url_by_id(db=db, url_id=url_id, user_id=current_user.id)
+    return build_url_response(request=request, url=url)
+
+
+@router.patch(
+    "/{url_id}",
+    response_model=URLResponse,
+    summary="Update shortened URL",
+    description="Updates the destination, expiration, or active status of a URL owned by the authenticated user.",
+)
+def patch_url(
+    url_id: int,
+    payload: URLUpdate,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    url = update_url(
+        db=db,
+        url_id=url_id,
+        user_id=current_user.id,
+        original_url=(str(payload.original_url) if payload.original_url else None),
+        expires_at=payload.expires_at,
+        expires_at_supplied="expires_at" in payload.model_fields_set,
+        is_active=payload.is_active,
+    )
     return build_url_response(request=request, url=url)
 
 

@@ -38,7 +38,7 @@ app.include_router(user_router)
 app.include_router(urls_router)
 
 
-@app.get("/", tags=["System"], summary=["API root"])
+@app.get("/", tags=["System"], summary="API root")
 def root():
     return {
         "status": "success",
@@ -47,7 +47,7 @@ def root():
     }
 
 
-@app.get("/health", tags=["System"], summary=["health check"])
+@app.get("/health", tags=["System"], summary="Health check")
 def health_check():
     return {
         "status": "success",

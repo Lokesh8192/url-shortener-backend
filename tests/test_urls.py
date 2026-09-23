@@ -132,6 +132,50 @@ def test_delete_url(client, auth_headers):
     assert get_response.status_code == 404
 
 
+def test_update_url(client, auth_headers):
+    create_response = client.post(
+        "/urls",
+        json={"original_url": "https://example.com"},
+        headers=auth_headers,
+    )
+    url_id = create_response.json()["id"]
+
+    response = client.patch(
+        f"/urls/{url_id}",
+        json={
+            "original_url": "https://example.org/path",
+            "is_active": False,
+        },
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["original_url"] == "https://example.org/path"
+    assert body["is_active"] is False
+
+
+def test_update_url_can_clear_expiration(client, auth_headers):
+    create_response = client.post(
+        "/urls",
+        json={
+            "original_url": "https://example.com",
+            "expires_at": "2026-12-31T23:59:59Z",
+        },
+        headers=auth_headers,
+    )
+    url_id = create_response.json()["id"]
+
+    response = client.patch(
+        f"/urls/{url_id}",
+        json={"expires_at": None},
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 200
+    assert response.json()["expires_at"] is None
+
+
 def test_user_cannot_access_another_users_url(
     client,
     auth_headers,

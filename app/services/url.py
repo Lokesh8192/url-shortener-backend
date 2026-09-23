@@ -6,7 +6,6 @@ from sqlalchemy.orm import Session
 from app.models.url import URL
 from app.models.url_click import URLClick
 from datetime import datetime, timezone
-from sqlalchemy import update
 from fastapi import HTTPException, status, Request
 from app.schemas.url_stats import URLStatsResponse
 
@@ -125,6 +124,31 @@ def delete_url(db: Session, url_id: int, user_id: int) -> None:
     url = get_url_by_id(db=db, url_id=url_id, user_id=user_id)
     db.delete(url)
     db.commit()
+
+
+def update_url(
+    db: Session,
+    url_id: int,
+    user_id: int,
+    *,
+    original_url: str | None = None,
+    expires_at: datetime | None = None,
+    expires_at_supplied: bool = False,
+    is_active: bool | None = None,
+) -> URL:
+    """Update an owner-managed URL without permitting ownership changes."""
+    url = get_url_by_id(db=db, url_id=url_id, user_id=user_id)
+
+    if original_url is not None:
+        url.original_url = original_url
+    if expires_at_supplied:
+        url.expires_at = expires_at
+    if is_active is not None:
+        url.is_active = is_active
+
+    db.commit()
+    db.refresh(url)
+    return url
 
 
 def get_url_by_short_code(db: Session, short_code: str, request: Request) -> URL:
